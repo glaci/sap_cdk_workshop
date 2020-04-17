@@ -1,0 +1,12 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "@aws-cdk/core:enableStackNameDuplicates": "true",
+    "aws-cdk:enableDiffNoFail": "true",
+    "account": "716809686138",
+    "region": "ap-northeast-1",
+    "vpc_cidr": "",
+    "subnet1_cidr": "",
+    "subnet2_cidr": ""
+  }
+}
