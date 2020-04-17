@@ -4,13 +4,12 @@ from aws_cdk import core
 
 from AWSWorkSpaces.Vpc import AwsVpcStack
 
+app = core.App()
 
 env_workspaces = core.Environment(
     account = app.node.try_get_context("account"),
     region = app.node.try_get_context("region")
 )
-
-app = core.App()
 
 Vpc = AwsVpcStack(
     app, "NewVPC",

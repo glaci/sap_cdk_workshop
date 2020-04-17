@@ -1,12 +1,12 @@
 {
   "app": "python3 app.py",
   "context": {
-    "@aws-cdk/core:enableStackNameDuplicates": "true",
-    "aws-cdk:enableDiffNoFail": "true",
     "account": "716809686138",
     "region": "ap-northeast-1",
-    "vpc_cidr": "",
-    "subnet1_cidr": "",
-    "subnet2_cidr": ""
+    "vpc_cidr": "172.16.0.0/23",
+    "subnet1_cidr": "172.16.0.0/24",
+    "subnet2_cidr": "172.16.1.0/24",
+    "ad_cidr": "10.0.0.0/16",
+    "transitgw_id": "tgw-0c79cc2cde7851b83"
   }
 }
