@@ -2,7 +2,8 @@
 
 from aws_cdk import core
 
-from AWSWorkSpaces.Vpc import AwsVpcStack
+from AWSWorkSpaces.Vpc import VpcStack
+from AWSWorkSpaces.DirectoryService import DirectoryServiceStack
 
 app = core.App()
 
@@ -11,8 +12,13 @@ env_workspaces = core.Environment(
     region = app.node.try_get_context("region")
 )
 
-Vpc = AwsVpcStack(
+Vpc = VpcStack(
     app, "NewVPC",
+    env = env_workspaces
+)
+
+AD = DirectoryServiceStack(
+    app, "NewADConnector", Vpc
     env = env_workspaces
 )
 

@@ -2,7 +2,7 @@ from aws_cdk import core
 import aws_cdk.aws_ec2 as _ec2
 
 
-class AwsVpcStack(core.Stack):
+class VpcStack(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
