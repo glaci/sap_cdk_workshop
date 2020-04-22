@@ -8,11 +8,11 @@ class VpcStack(core.Stack):
         super().__init__(scope, id, **kwargs)
 
         # Import vars from cdk.json context
-        _vpc_cidr = self.node.try_get_context("vpc_cidr")
-        _subnet1_cidr = self.node.try_get_context("subnet1_cidr")
-        _subnet2_cidr = self.node.try_get_context("subnet2_cidr")
-        _transitgw_id = self.node.try_get_context("transitgw_id")
-        _ad_cidr = self.node.try_get_context("ad_cidr")
+        _vpc_cidr = self.node.try_get_context("target")['vpc_cidr']
+        _subnet1_cidr = self.node.try_get_context("target")['subnet1_cidr']
+        _subnet2_cidr = self.node.try_get_context("target")['subnet2_cidr']
+        _transitgw_id = self.node.try_get_context("target")['transitgw_id']
+        _ad_cidr = self.node.try_get_context("target")['ad_cidr']
 
         # Create detaul DHCP Option
         vpc_dhcp = _ec2.CfnDHCPOptions(

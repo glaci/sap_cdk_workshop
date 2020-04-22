@@ -2,14 +2,20 @@
 
 from aws_cdk import core
 
+from AWSWorkSpaces.PrepVpc import PrepVpcStack
 from AWSWorkSpaces.Vpc import VpcStack
 from AWSWorkSpaces.DirectoryService import DirectoryServiceStack
 
 app = core.App()
 
 env_workspaces = core.Environment(
-    account = app.node.try_get_context("account"),
-    region = app.node.try_get_context("region")
+    account = app.node.try_get_context("target")['account'],
+    region = app.node.try_get_context("target")['region']
+)
+
+Prep = PrepVpcStack(
+    app, "PrepStack",
+    env = env_workspaces
 )
 
 Vpc = VpcStack(
@@ -18,7 +24,7 @@ Vpc = VpcStack(
 )
 
 AD = DirectoryServiceStack(
-    app, "NewADConnector", Vpc
+    app, "NewADConnector", Vpc,
     env = env_workspaces
 )
 

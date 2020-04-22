@@ -1,12 +1,18 @@
 {
   "app": "python3 app.py",
   "context": {
-    "account": "716809686138",
-    "region": "ap-northeast-1",
-    "vpc_cidr": "172.16.0.0/23",
-    "subnet1_cidr": "172.16.0.0/24",
-    "subnet2_cidr": "172.16.1.0/24",
-    "ad_cidr": "10.0.0.0/16",
-    "transitgw_id": "tgw-0c79cc2cde7851b83"
+    "source": {
+        "account": "412862348313",
+        "transitgw_share_id": "69d23ac4-f908-45e8-8fa0-27d32c9e7b4b"
+    },
+    "target": {
+        "account": "716809686138",
+        "region": "ap-northeast-1",
+        "vpc_cidr": "172.16.0.0/23",
+        "subnet1_cidr": "172.16.0.0/24",
+        "subnet2_cidr": "172.16.1.0/24",
+        "ad_cidr": "10.0.0.0/16",
+        "transitgw_id": "tgw-0c79cc2cde7851b83"
+    }
   }
 }
