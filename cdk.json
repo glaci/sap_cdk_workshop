@@ -3,7 +3,10 @@
   "context": {
     "source": {
         "account": "412862348313",
-        "transitgw_share_id": "69d23ac4-f908-45e8-8fa0-27d32c9e7b4b"
+        "doamin_name": "test.lab",
+        "dnsips": [ "10.0.3.193", "10.0.4.102" ],
+        "domain_user": "mgmtuser",
+        "sm_domain_password": "SecretForADConnector3BE4E6E-3tbXjXYa0Vs1"
     },
     "target": {
         "account": "716809686138",

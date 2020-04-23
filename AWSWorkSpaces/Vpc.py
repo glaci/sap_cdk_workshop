@@ -26,6 +26,8 @@ class VpcStack(core.Stack):
             cidr_block = _vpc_cidr
         )
 
+        self.vpcstack = vpc_workspaces
+
         # Attach DHCP to this VPC
         _ec2.CfnVPCDHCPOptionsAssociation(
             self, "DHCPOptionAttachment",
@@ -48,6 +50,9 @@ class VpcStack(core.Stack):
             vpc_id = vpc_workspaces.ref,
             availability_zone = self.availability_zones[1]
         )
+
+        self.subnetstack1 = subnet1
+        self.subnetstack2 = subnet2
 
         # Create Public Subnet RouteTable
         public_subnet_route = _ec2.CfnRouteTable(
@@ -86,3 +91,9 @@ class VpcStack(core.Stack):
         )
 
         public_route.add_depends_on(transitGWattachment)
+
+    def get_vpc_stack(self):
+        return self.vpcstack
+
+    def get_vpc_subnets(self):
+        return [ self.subnetstack1, self.subnetstack2 ]

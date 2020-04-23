@@ -3,11 +3,24 @@ import aws_cdk.aws_ec2 as _ec2
 import aws_cdk.aws_iam as _iam
 import aws_cdk.aws_lambda as _lambda
 import aws_cdk.aws_cloudformation as _cf
+import aws_cdk.aws_secretsmanager as _sm
 
 class PrepVpcStack(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
+
+        _domain_user = self.node.try_get_context("source")['domain_user']
+
+        # Create a Secret Manager Secret to set default Password
+        _sm.Secret(
+            self, "SecretForADConnector",
+            generate_secret_string = _sm.SecretStringGenerator(
+                generate_string_key = "password",
+                secret_string_template = "{\"username\": ""\""+_domain_user+"\"""}"
+            )
+        )
+
 
         # Create IAM Policy for LambdaFunction: Accept RAM Invitation
         lambdapolicy = _iam.PolicyDocument(
