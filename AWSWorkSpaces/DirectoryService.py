@@ -49,6 +49,15 @@ class DirectoryServiceStack(core.Stack):
             inline_policies = { "WorkSpacesDefaultPolicy": wsdefaultpolicy },
             role_name = "workspaces_DefaultRole"
         )
+        # parameters should be extracted
+        vpc_id = "vpc-ba535ddd"  # Import an Exist VPC
+        ec2_type = "t2.medium"
+        key_name = "keyWorkspace" 
+        directoryId = "d-956712d519"
+        directoryName = "test.lab"
+        dnsIpAddresses1 = "10.0.3.193"
+        dnsIpAddresses2 = "10.0.4.102"
+
 
         # Create IAM Policy for LambdaFunction: Create AD Connector
         lambdapolicy = _iam.PolicyDocument(
@@ -147,5 +156,86 @@ class DirectoryServiceStack(core.Stack):
             service_token = adlambda.function_arn
         )
 
-    # def get_ad(self):
+    
+
+        # =========
+        #   EC2
+        # =========
+        windows_ami = _ec2.WindowsImage(_ec2.WindowsVersion.WINDOWS_SERVER_2019_ENGLISH_FULL_BASE)
+
+        # The code that defines your stack goes here
+        vpc = _ec2.Vpc.from_lookup(self, "VPC", vpc_id=vpc_id)
+
+        # Create role "EC2JoinDomain" to apply on Windows EC2JoinDomain (EC2)
+        ssmrole = _iam.Role(
+            self,"SSMRoleforEC2",
+            assumed_by = _iam.ServicePrincipal('ec2.amazonaws.com'),
+            managed_policies = [
+                _iam.ManagedPolicy.from_managed_policy_arn(
+                    self,"AmazonSSMManagedInstanceCore",
+                    managed_policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+                ),
+                _iam.ManagedPolicy.from_managed_policy_arn(
+                    self,"AmazonSSMDirectoryServiceAccess",
+                    managed_policy_arn = "arn:aws:iam::aws:policy/AmazonSSMDirectoryServiceAccess"
+                )
+            ],
+            role_name = "EC2JoinDomain"
+        )
+
+        # create windows ec2 instance
+        host = _ec2.Instance(self, "myEC2",
+                            instance_type=_ec2.InstanceType(
+                                instance_type_identifier=ec2_type),
+                            instance_name="myAdHost",
+                            machine_image=windows_ami,
+                            vpc=vpc,
+                            role=ssmrole,
+                            key_name=key_name,
+                            vpc_subnets=_ec2.SubnetSelection(
+                                subnet_type=_ec2.SubnetType.PUBLIC)
+                            # user_data=ec2.UserData.custom(user_data)
+                            )
+
+        host.connections.allow_from_any_ipv4(_ec2.Port.tcp(3389), "Allow RDP from internet")
+
+        core.CfnOutput(self, "Output", value=host.instance_public_ip)
+
+        # Create SSM Document to join Window EC2 into AD
+        ssmdocument = _ssm.CfnDocument(
+            self, "SSMDocumentJoinAD",
+            document_type = "Command",
+            name = "SSMDocumentJoinAD",
+            content =
+            {
+                "schemaVersion": "1.0",
+                "description": "Automatic Domain Join Configuration created by EC2 Console.",
+                "runtimeConfig": {
+                    "aws:domainJoin": {
+                        "properties": {
+                            "directoryId": directoryId,
+                            "directoryName": directoryName,
+                            "dnsIpAddresses": [
+                                dnsIpAddresses1,
+                                dnsIpAddresses2
+                            ]
+                        }
+                    }
+                }
+            }
+        )
+
+        # Create SSM Associate to trigger SSM doucment to let Windows EC2JoinDomain (EC2) join Domain
+        ssmjoinad = _ssm.CfnAssociation(
+            self,"WindowJoinAD",
+            name = ssmdocument.name,
+            targets = [{
+                "key": "InstanceIds",
+                "values": [ host.instance_id ]
+            }]
+        )
+
+        ssmjoinad.add_depends_on(ssmdocument)
+
+# def get_ad(self):
     #     return self.ssm_directory_service.string_value
