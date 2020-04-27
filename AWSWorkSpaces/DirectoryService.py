@@ -4,6 +4,7 @@ import aws_cdk.aws_directoryservice as _ds
 import aws_cdk.aws_iam as _iam
 import aws_cdk.aws_lambda as _lambda
 import aws_cdk.aws_cloudformation as _cf
+import aws_cdk.aws_ssm as _ssm
 
 
 class DirectoryServiceStack(core.Stack):
@@ -18,6 +19,36 @@ class DirectoryServiceStack(core.Stack):
         _doamin_server_ips = self.node.try_get_context("source")['dnsips']
         _domain_user = self.node.try_get_context("source")['domain_user']
         _sm_domain_password = self.node.try_get_context("source")['sm_domain_password']
+
+        # Create Policy to workspaces_DefaultRole Role
+        wsdefaultpolicy = _iam.PolicyDocument(
+            statements = [
+                _iam.PolicyStatement(
+                    actions = [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces"
+                    ],
+                    resources = [ "*" ]
+                ),
+                _iam.PolicyStatement(
+                    actions = [
+                    "workspaces:RebootWorkspaces",
+                    "workspaces:RebuildWorkspaces",
+                    "workspaces:ModifyWorkspaceProperties"
+                    ],
+                    resources = [ "*" ]
+                )
+            ]
+        )
+
+        # Create role workspaces_DefaultRole for later WorkSpaces API usage
+        wsrole = _iam.Role(
+            self, "WorkSpacesDefaultRole",
+            assumed_by = _iam.ServicePrincipal('workspaces.amazonaws.com'),
+            inline_policies = { "WorkSpacesDefaultPolicy": wsdefaultpolicy },
+            role_name = "workspaces_DefaultRole"
+        )
 
         # Create IAM Policy for LambdaFunction: Create AD Connector
         lambdapolicy = _iam.PolicyDocument(
@@ -38,6 +69,11 @@ class DirectoryServiceStack(core.Stack):
                         "ds:ConnectDirectory",
                         "ds:DescribeDirectories",
                         "ds:DeleteDirectory",
+                        "ds:AuthorizeApplication",
+                        "ds:UnauthorizeApplication",
+                        "workspaces:RegisterWorkspaceDirectory",
+                        "workspaces:DeregisterWorkspaceDirectory",
+                        "iam:GetRole",
                         "ec2:AuthorizeSecurityGroupEgress",
                         "ec2:AuthorizeSecurityGroupIngress",
                         "ec2:CreateNetworkInterface",
@@ -46,6 +82,9 @@ class DirectoryServiceStack(core.Stack):
                         "ec2:DescribeNetworkInterfaces",
                         "ec2:DescribeSubnets",
                         "ec2:DescribeVpcs",
+                        "ec2:DescribeInternetGateways",
+                        "ec2:DescribeRouteTables",
+                        "ec2:DescribeAvailabilityZones",
                         "ec2:DeleteSecurityGroup",
                         "ec2:DeleteNetworkInterface",
                         "ec2:RevokeSecurityGroupIngress",
@@ -61,6 +100,15 @@ class DirectoryServiceStack(core.Stack):
                         "secretsmanager:DescribeSecret"
                     ],
                     resources = [ "arn:aws:secretsmanager:{}:{}:secret:{}*".format(self.region,self.account,_sm_domain_password) ]
+                ),
+                _iam.PolicyStatement(
+                    actions = [
+                        "ssm:PutParameter",
+                        "ssm:LabelParameterVersion",
+                        "ssm:DeleteParameter",
+                        "ssm:GetManifest"
+                    ],
+                    resources = [ "arn:aws:ssm:{}:{}:parameter/*".format(self.region,self.account) ]
                 )
             ]
         )
@@ -89,11 +137,15 @@ class DirectoryServiceStack(core.Stack):
                 "DNSIP1": _doamin_server_ips[0],
                 "DNSIP2": _doamin_server_ips[1],
             },
-            timeout = core.Duration.seconds(120),
+            timeout = core.Duration.seconds(900),
             function_name = "create_adconnector"
         )
+        
         # Create a customResource to trigger Lambda function after Lambda function is created
         _cf.CfnCustomResource(
             self, "InvokeLambdaFunction",
             service_token = adlambda.function_arn
         )
+
+    # def get_ad(self):
+    #     return self.ssm_directory_service.string_value
