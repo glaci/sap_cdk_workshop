@@ -19,6 +19,8 @@ class DirectoryServiceStack(core.Stack):
         _doamin_server_ips = self.node.try_get_context("source")['dnsips']
         _domain_user = self.node.try_get_context("source")['domain_user']
         _sm_domain_password = self.node.try_get_context("source")['sm_domain_password']
+        _ec2_type = self.node.try_get_context("target")['ec2_type']
+        _key_name = self.node.try_get_context("target")['key_name']
 
         # Create Policy to workspaces_DefaultRole Role
         wsdefaultpolicy = _iam.PolicyDocument(
@@ -49,15 +51,7 @@ class DirectoryServiceStack(core.Stack):
             inline_policies = { "WorkSpacesDefaultPolicy": wsdefaultpolicy },
             role_name = "workspaces_DefaultRole"
         )
-        # parameters should be extracted
-        vpc_id = "vpc-ba535ddd"  # Import an Exist VPC
-        ec2_type = "t2.medium"
-        key_name = "keyWorkspace" 
-        directoryId = "d-956712d519"
-        directoryName = "test.lab"
-        dnsIpAddresses1 = "10.0.3.193"
-        dnsIpAddresses2 = "10.0.4.102"
-
+        
 
         # Create IAM Policy for LambdaFunction: Create AD Connector
         lambdapolicy = _iam.PolicyDocument(
@@ -163,9 +157,6 @@ class DirectoryServiceStack(core.Stack):
         # =========
         windows_ami = _ec2.WindowsImage(_ec2.WindowsVersion.WINDOWS_SERVER_2019_ENGLISH_FULL_BASE)
 
-        # The code that defines your stack goes here
-        vpc = _ec2.Vpc.from_lookup(self, "VPC", vpc_id=vpc_id)
-
         # Create role "EC2JoinDomain" to apply on Windows EC2JoinDomain (EC2)
         ssmrole = _iam.Role(
             self,"SSMRoleforEC2",
@@ -182,22 +173,39 @@ class DirectoryServiceStack(core.Stack):
             ],
             role_name = "EC2JoinDomain"
         )
+        
+        # The code that defines your stack goes here
+        _vpc_id = _vpc.ref
+        _ec2_vpc = _ec2.Vpc.from_vpc_attributes(self, "VPC", vpc_id=_vpc_id, availability_zones=[_subnet[0].availability_zone,_subnet[1].availability_zone])
+
+         # Create a security group for RDP access on Windows EC2JoinDomain (EC2)
+        rdpsg = _ec2.SecurityGroup(
+            self, "SGForRDP",
+            vpc = _ec2_vpc,
+            description = "The Secrurity Group from local environment to Windows EC2 Instance"
+        )
+
+        rdpsg.add_ingress_rule(
+            peer = _ec2.Peer.ipv4("0.0.0.0/0"),
+            connection = _ec2.Port.tcp(3389)
+        )
 
         # create windows ec2 instance
         host = _ec2.Instance(self, "myEC2",
                             instance_type=_ec2.InstanceType(
-                                instance_type_identifier=ec2_type),
+                                instance_type_identifier=_ec2_type),
                             instance_name="myAdHost",
                             machine_image=windows_ami,
-                            vpc=vpc,
+                            vpc=_ec2_vpc,
                             role=ssmrole,
-                            key_name=key_name,
+                            key_name=_key_name,
+                            security_group = rdpsg,
                             vpc_subnets=_ec2.SubnetSelection(
-                                subnet_type=_ec2.SubnetType.PUBLIC)
+                                subnets=_subnet)
                             # user_data=ec2.UserData.custom(user_data)
                             )
 
-        host.connections.allow_from_any_ipv4(_ec2.Port.tcp(3389), "Allow RDP from internet")
+        # host.connections.allow_from_any_ipv4(_ec2.Port.tcp(3389), "Allow RDP from internet")
 
         core.CfnOutput(self, "Output", value=host.instance_public_ip)
 
@@ -208,20 +216,52 @@ class DirectoryServiceStack(core.Stack):
             name = "SSMDocumentJoinAD",
             content =
             {
-                "schemaVersion": "1.0",
-                "description": "Automatic Domain Join Configuration created by EC2 Console.",
-                "runtimeConfig": {
-                    "aws:domainJoin": {
-                        "properties": {
-                            "directoryId": directoryId,
-                            "directoryName": directoryName,
-                            "dnsIpAddresses": [
-                                dnsIpAddresses1,
-                                dnsIpAddresses2
+                "description": "Run a PowerShell script to domain join a Windows instance securely",
+                "schemaVersion": "2.0",
+                "mainSteps": [
+                    {
+                        "action": "aws:runPowerShellScript",
+                        "name": "runPowerShellWithSecureString",
+                        "inputs": {
+                            "runCommand": [
+                            "# Example PowerShell script to domain join a Windows instance securely",
+                            "# Adopt the document from AWS Blog Join a Microsoft Active Directory Domain with Parameter Store and Amazon EC2 Systems Manager Documents",
+                            "",
+                            "$ErrorActionPreference = 'Stop'",
+                            "",
+                            "try{",
+                            "    # Parameter names"
+                            "    $domainJoinPasswordParameterStore = \"{}\"".format(_sm_domain_password),
+                            "",
+                            "    # Retrieve configuration values from parameters",
+                            "    $ipdns = \"{}\"".format(_doamin_server_ips[0]),
+                            "    $domain = \"{}\"".format(_doamin_name),
+                            "    $username = ((Get-SECSecretValue -SecretId $domainJoinPasswordParameterStore ).SecretString | ConvertFrom-Json ).username",
+                            "    $password = ((Get-SECSecretValue -SecretId $domainJoinPasswordParameterStore ).SecretString | ConvertFrom-Json ).password | ConvertTo-SecureString -asPlainText -Force ",
+                            "",
+                            "    # Create a System.Management.Automation.PSCredential object",
+                            "    $credential = New-Object System.Management.Automation.PSCredential($username, $password)",
+                            "",
+                            "    # Determine the name of the Network Adapter of this machine",
+                            "    $networkAdapter = Get-WmiObject Win32_NetworkAdapter -Filter \"AdapterType = 'Ethernet 802.3'\"",
+                            "    $networkAdapterName = ($networkAdapter | Select-Object -First 1).NetConnectionID",
+                            "",
+                            "    # Set up the IPv4 address of the AD DNS server as the first DNS server on this machine",
+                            "    netsh.exe interface ipv4 add dnsservers name=$networkAdapterName address=$ipdns index=1",
+                            "",
+                            "    # Join the domain and reboot",
+                            "    Add-Computer -DomainName $domain -Credential $credential",
+                            "    Restart-Computer -Force",
+                            "}",
+                            "catch [Exception]{",
+                            "    Write-Host $_.Exception.ToString()",
+                            "    Write-Host 'Command execution failed.'",
+                            "    $host.SetShouldExit(1)",
+                            "}"
                             ]
                         }
-                    }
-                }
+                   }
+               ]
             }
         )
 
