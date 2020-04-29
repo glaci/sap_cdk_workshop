@@ -18,7 +18,9 @@ class PrepVpcStack(core.Stack):
             generate_secret_string = _sm.SecretStringGenerator(
                 generate_string_key = "password",
                 secret_string_template = "{\"username\": ""\""+_domain_user+"\"""}"
-            )
+            ),
+            secret_name = "SecretForADConnector"
+
         )
 
 

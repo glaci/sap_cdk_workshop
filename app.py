@@ -5,7 +5,6 @@ from AWSWorkSpaces.PrepVpc import PrepVpcStack
 from AWSWorkSpaces.Vpc import VpcStack
 from AWSWorkSpaces.DirectoryService import DirectoryServiceStack
 from AWSWorkSpaces.WorkSpaces import AWSWorkSpaces
-from vpc_ec2.ec2_stack  import CdkVpcEc2Stack
 
 app = core.App()
 env_workspaces = core.Environment(
@@ -22,8 +21,6 @@ Vpc = VpcStack(
     app, "NewVPC",
     env = env_workspaces
 )
-
-CdkVpcEc2Stack(app, "vpc-ec2", env=env_workspaces)
 
 
 AD = DirectoryServiceStack(
