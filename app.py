@@ -22,7 +22,6 @@ Vpc = VpcStack(
     env = env_workspaces
 )
 
-
 AD = DirectoryServiceStack(
     app, "NewADConnector", Vpc,
     env = env_workspaces
