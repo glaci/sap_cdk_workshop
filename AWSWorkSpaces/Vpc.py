@@ -18,6 +18,7 @@ class VpcStack(core.Stack):
         vpc_dhcp = _ec2.CfnDHCPOptions(
             self, "DefaultDHCPOption",
             domain_name = "{}.compute.internal".format(self.region),
+            domain_name_servers = [ "AmazonProvidedDNS" ]
         )
 
         # Create new VPC
@@ -40,7 +41,11 @@ class VpcStack(core.Stack):
             self, "PublicSubnet1",
             cidr_block = _subnet1_cidr,
             vpc_id = vpc_workspaces.ref,
-            availability_zone = self.availability_zones[0]
+            availability_zone = self.availability_zones[0],
+            map_public_ip_on_launch = True,
+            tags = [
+                core.CfnTag(key = "Network", value = "Public")
+            ]
         )
 
         # Create Public Subnet 2
@@ -48,7 +53,11 @@ class VpcStack(core.Stack):
             self, "PublicSubnet2",
             cidr_block = _subnet2_cidr,
             vpc_id = vpc_workspaces.ref,
-            availability_zone = self.availability_zones[1]
+            availability_zone = self.availability_zones[1],
+            map_public_ip_on_launch = True,
+            tags = [
+                core.CfnTag(key = "Network", value = "Public")
+            ]
         )
 
         self.subnetstack1 = subnet1
@@ -82,13 +91,34 @@ class VpcStack(core.Stack):
             subnet_id = subnet2.ref
         )
 
+        internetGW = _ec2.CfnInternetGateway(
+            self, "InternetGateway",
+            tags = [
+                core.CfnTag(key = "Network", value = "Public")
+            ]
+        )
+
+        _ec2.CfnVPCGatewayAttachment(
+            self, "AttchIGWtoVPC",
+            vpc_id = vpc_workspaces.ref,
+            internet_gateway_id = internetGW.ref
+        )
+
         # Add route from transitGW to AD Env
-        public_route = _ec2.CfnRoute(
+        tansit_route = _ec2.CfnRoute(
             self, "CreateRouteFromTransitGWtoAD",
             route_table_id = public_subnet_route.ref,
             destination_cidr_block = _ad_cidr,
             transit_gateway_id = _transitgw_id
         )
+
+        public_route = _ec2.CfnRoute(
+            self, "CreateRouteFromInternetGWtoPublic",
+            route_table_id = public_subnet_route.ref,
+            destination_cidr_block = "0.0.0.0/0",
+            gateway_id = internetGW.ref
+        )
+
 
         public_route.add_depends_on(transitGWattachment)
 

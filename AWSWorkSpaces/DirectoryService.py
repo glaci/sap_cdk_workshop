@@ -184,6 +184,10 @@ class DirectoryServiceStack(core.Stack):
                 _iam.ManagedPolicy.from_managed_policy_arn(
                     self,"AmazonSSMDirectoryServiceAccess",
                     managed_policy_arn = "arn:aws:iam::aws:policy/AmazonSSMDirectoryServiceAccess"
+                ),
+                _iam.ManagedPolicy.from_managed_policy_arn(
+                    self,"AmazonSecretsManagers",
+                    managed_policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
                 )
             ],
             role_name = "EC2JoinDomain"
@@ -241,13 +245,13 @@ class DirectoryServiceStack(core.Stack):
                             "$ErrorActionPreference = 'Stop'",
                             "",
                             "try{",
-                            "    # Parameter names"
+                            "    # Parameter names",
                             "    $domainJoinPasswordParameterStore = \"{}\"".format(_sm_domain_password),
                             "",
                             "    # Retrieve configuration values from parameters",
                             "    $ipdns = \"{}\"".format(_doamin_server_ips[0]),
                             "    $domain = \"{}\"".format(_doamin_name),
-                            "    $username = ((Get-SECSecretValue -SecretId $domainJoinPasswordParameterStore ).SecretString | ConvertFrom-Json ).username",
+                            "    $username = $domain + \"\\\" + ((Get-SECSecretValue -SecretId $domainJoinPasswordParameterStore ).SecretString | ConvertFrom-Json ).username",
                             "    $password = ((Get-SECSecretValue -SecretId $domainJoinPasswordParameterStore ).SecretString | ConvertFrom-Json ).password | ConvertTo-SecureString -asPlainText -Force ",
                             "",
                             "    # Create a System.Management.Automation.PSCredential object",
