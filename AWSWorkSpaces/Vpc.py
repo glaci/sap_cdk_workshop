@@ -119,7 +119,7 @@ class VpcStack(core.Stack):
             gateway_id = internetGW.ref
         )
 
-
+        tansit_route.add_depends_on(transitGWattachment)
         public_route.add_depends_on(transitGWattachment)
 
     def get_vpc_stack(self):

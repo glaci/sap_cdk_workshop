@@ -204,7 +204,7 @@ class DirectoryServiceStack(core.Stack):
         )
 
         rdpsg.add_ingress_rule(
-            peer = _ec2.Peer.ipv4("0.0.0.0/0"),
+            peer = _ec2.Peer.prefix_list("pl-bea742d7"),
             connection = _ec2.Port.tcp(3389)
         )
 
