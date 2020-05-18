@@ -16,8 +16,10 @@
         "subnet2_cidr": "172.16.1.0/24",
         "ad_cidr": "10.0.0.0/16",
         "transitgw_id": "tgw-0c79cc2cde7851b83",
-        "workspacesuser": "test\\hank",
-        "workspacesbundle": "wsb-8vbljg4r6"
+        "workspacesuser": "test\\hanklee",
+        "workspacesbundle": "wsb-8vbljg4r6",
+        "ec2_type": "t2.large",
+        "key_name": "jp_key"
     }
   }
 }
